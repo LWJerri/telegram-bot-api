@@ -6,6 +6,8 @@
 //
 #pragma once
 
+#include "telegram-bot-api/S3Storage.h"
+
 #include "td/db/KeyValueSyncInterface.h"
 #include "td/db/TQueue.h"
 
@@ -124,6 +126,9 @@ struct ClientParameters {
   std::shared_ptr<SharedData> shared_data_;
 
   std::shared_ptr<td::NetQueryStats> net_query_stats_;
+
+  S3Config s3_config_;
+  std::shared_ptr<S3Storage> s3_storage_;
 };
 
 }  // namespace telegram_bot_api

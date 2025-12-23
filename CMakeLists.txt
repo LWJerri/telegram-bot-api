@@ -59,6 +59,14 @@ if (CLANG OR GCC)
   endif()
 endif()
 
+find_package(AWSSDK COMPONENTS s3)
+if (AWSSDK_FOUND)
+  message(STATUS "AWS SDK found, S3 storage support enabled")
+  add_definitions(-DTELEGRAM_BOT_API_S3_ENABLED)
+else()
+  message(STATUS "AWS SDK not found, S3 storage support disabled")
+endif()
+
 set(TELEGRAM_BOT_API_SOURCE
   telegram-bot-api/telegram-bot-api.cpp
 
@@ -83,9 +91,21 @@ set(TELEGRAM_BOT_API_SOURCE
   telegram-bot-api/WebhookActor.h
 )
 
+if (AWSSDK_FOUND)
+  list(APPEND TELEGRAM_BOT_API_SOURCE
+    telegram-bot-api/S3Storage.cpp
+    telegram-bot-api/S3Storage.h
+  )
+endif()
+
 add_executable(telegram-bot-api ${TELEGRAM_BOT_API_SOURCE})
 target_include_directories(telegram-bot-api PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 target_link_libraries(telegram-bot-api PRIVATE memprof tdactor tdcore tddb tdnet tdutils)
+
+if (AWSSDK_FOUND)
+  target_link_libraries(telegram-bot-api PRIVATE ${AWSSDK_LINK_LIBRARIES})
+  target_include_directories(telegram-bot-api PRIVATE ${AWSSDK_INCLUDE_DIRS})
+endif()
 
 install(TARGETS telegram-bot-api RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 if (MSVC AND VCPKG_TOOLCHAIN)

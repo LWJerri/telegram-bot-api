@@ -9,6 +9,7 @@
 #include "telegram-bot-api/HttpConnection.h"
 #include "telegram-bot-api/HttpServer.h"
 #include "telegram-bot-api/HttpStatConnection.h"
+#include "telegram-bot-api/S3Storage.h"
 #include "telegram-bot-api/Stats.h"
 #include "telegram-bot-api/Watchdog.h"
 
@@ -203,6 +204,30 @@ int main(int argc, char *argv[]) {
     }
     return td::string();
   }(std::getenv("TELEGRAM_API_HASH"));
+
+  auto get_env_string = [](const char *name) -> td::string {
+    auto value = std::getenv(name);
+    return value ? td::string(value) : td::string();
+  };
+
+  parameters->s3_config_.bucket = get_env_string("S3_BUCKET");
+  parameters->s3_config_.access_key_id = get_env_string("S3_ACCESS_KEY_ID");
+  parameters->s3_config_.secret_access_key = get_env_string("S3_SECRET_ACCESS_KEY");
+  parameters->s3_config_.region = get_env_string("S3_REGION");
+
+  if (parameters->s3_config_.region.empty()) {
+    parameters->s3_config_.region = "us-east-1";
+  }
+
+  parameters->s3_config_.endpoint = get_env_string("S3_ENDPOINT");
+  parameters->s3_config_.path_prefix = get_env_string("S3_PATH_PREFIX");
+  parameters->s3_config_.use_path_style = !get_env_string("S3_USE_PATH_STYLE").empty();
+
+  auto presigned_expiry = get_env_string("S3_PRESIGNED_URL_EXPIRY");
+
+  if (!presigned_expiry.empty()) {
+    parameters->s3_config_.presigned_url_expiry_seconds = td::to_integer<td::int32>(presigned_expiry);
+  }
 
   options.set_usage(td::Slice(argv[0]), "--api-id=<arg> --api-hash=<arg> [--local] [OPTION]...");
   options.set_description("Telegram Bot API server");
@@ -440,6 +465,20 @@ int main(int argc, char *argv[]) {
   }
 
   parameters->working_directory_ = std::move(working_directory);
+
+  if (parameters->s3_config_.is_enabled()) {
+    LOG(WARNING) << "Initializing S3 storage for bucket: " << parameters->s3_config_.bucket;
+
+    parameters->s3_storage_ = std::make_shared<S3Storage>(parameters->s3_config_);
+
+    if (parameters->s3_storage_->is_enabled()) {
+      LOG(WARNING) << "S3 storage initialized successfully";
+    } else {
+      LOG(ERROR) << "Failed to initialize S3 storage";
+
+      parameters->s3_storage_ = nullptr;
+    }
+  }
 
   if (parameters->default_max_webhook_connections_ <= 0) {
     parameters->default_max_webhook_connections_ = parameters->local_mode_ ? 100 : 40;

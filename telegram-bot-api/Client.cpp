@@ -7,6 +7,7 @@
 #include "telegram-bot-api/Client.h"
 
 #include "telegram-bot-api/ClientParameters.h"
+#include "telegram-bot-api/S3Storage.h"
 
 #include "td/db/TQueue.h"
 
@@ -14575,13 +14576,49 @@ void Client::on_file_download(int32 file_id, td::Result<object_ptr<td_api::file>
   auto queries = std::move(it->second);
   file_download_listeners_.erase(it);
   download_started_file_ids_.erase(file_id);
-  for (auto &query : queries) {
-    if (r_file.is_error()) {
+
+  if (r_file.is_error()) {
+    for (auto &query : queries) {
       const auto &error = r_file.error();
       fail_query_with_error(std::move(query), error.code(), error.public_message());
-    } else {
-      answer_query(JsonFile(r_file.ok().get(), this, true), std::move(query));
     }
+    return;
+  }
+
+  auto file = r_file.move_as_ok();
+
+  if (parameters_->s3_storage_ && parameters_->s3_storage_->is_enabled() && file->local_->is_downloading_completed_) {
+    td::Slice local_path = file->local_->path_;
+    if (!local_path.empty()) {
+      // <bot_token_id>/<type>/<file>
+      td::Slice relative_path = td::PathView::relative(local_path, dir_, true);
+      td::string file_path = relative_path.empty() ? td::PathView(local_path).file_name().str() : relative_path.str();
+      td::string s3_key = PSTRING() << bot_token_id_ << "/" << file_path;
+
+      auto upload_result = parameters_->s3_storage_->upload_file(local_path, s3_key);
+      if (upload_result.is_ok()) {
+        auto url_result = parameters_->s3_storage_->get_presigned_url(s3_key);
+        if (url_result.is_ok()) {
+          s3_file_urls_[file_id] = url_result.move_as_ok();
+          LOG(INFO) << "File " << file_id << " uploaded to S3 with key: " << s3_key;
+
+          auto delete_status = td::unlink(local_path.str());
+          if (delete_status.is_ok()) {
+            LOG(INFO) << "Deleted local file after S3 upload: " << local_path;
+          } else {
+            LOG(WARNING) << "Failed to delete local file: " << delete_status.error().message();
+          }
+        } else {
+          LOG(WARNING) << "Failed to get presigned URL for file " << file_id << ": " << url_result.error().message();
+        }
+      } else {
+        LOG(WARNING) << "Failed to upload file " << file_id << " to S3: " << upload_result.error().message();
+      }
+    }
+  }
+
+  for (auto &query : queries) {
+    answer_query(JsonFile(file.get(), this, true), std::move(query));
   }
 }
 
@@ -15389,7 +15426,10 @@ void Client::json_store_file(td::JsonObjectScope &object, const td_api::file *fi
     object("file_size", file->size_);
   }
   if (with_path && file->local_->is_downloading_completed_) {
-    if (parameters_->local_mode_) {
+    auto s3_it = s3_file_urls_.find(file->id_);
+    if (s3_it != s3_file_urls_.end() && !s3_it->second.empty()) {
+      object("file_path", s3_it->second);
+    } else if (parameters_->local_mode_) {
       if (td::check_utf8(file->local_->path_)) {
         object("file_path", file->local_->path_);
       } else {

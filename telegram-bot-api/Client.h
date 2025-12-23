@@ -1366,6 +1366,7 @@ class Client final : public WebhookActor::Callback {
 
   td::FlatHashMap<int32, td::vector<PromisedQueryPtr>> file_download_listeners_;
   td::FlatHashSet<int32> download_started_file_ids_;
+  td::FlatHashMap<int32, td::string> s3_file_urls_;
 
   struct YetUnsentMessage {
     int64 send_message_query_id = 0;
