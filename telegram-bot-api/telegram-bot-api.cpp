@@ -223,6 +223,7 @@ int main(int argc, char *argv[]) {
   parameters->s3_config_.path_prefix = get_env_string("S3_PATH_PREFIX");
   parameters->s3_config_.use_path_style = !get_env_string("S3_USE_PATH_STYLE").empty();
   parameters->s3_config_.use_public_urls = !get_env_string("S3_USE_PUBLIC_URLS").empty();
+  parameters->s3_config_.use_path_only = !get_env_string("S3_USE_PATH_ONLY").empty();
 
   auto presigned_expiry = get_env_string("S3_PRESIGNED_URL_EXPIRY");
 

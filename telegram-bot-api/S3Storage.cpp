@@ -469,10 +469,20 @@ td::Result<td::string> S3Storage::get_file_url(td::Slice s3_key) {
   if (!impl_) {
     return td::Status::Error("S3 storage is not enabled");
   }
+  if (config_.use_path_only) {
+    return impl_->get_full_key(s3_key);
+  }
   if (config_.use_public_urls) {
     return impl_->get_public_url(s3_key);
   }
   return impl_->get_presigned_url(s3_key);
+}
+
+td::string S3Storage::get_file_path(td::Slice s3_key) const {
+  if (!impl_) {
+    return td::string();
+  }
+  return impl_->get_full_key(s3_key);
 }
 
 td::Status S3Storage::delete_file(td::Slice s3_key) {
