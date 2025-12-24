@@ -25,6 +25,7 @@ struct S3Config {
   td::string endpoint;
   td::string path_prefix;
   bool use_path_style = false;
+  bool use_public_urls = false;
   td::int32 presigned_url_expiry_seconds = 3600;
 
   bool is_enabled() const {
@@ -53,6 +54,8 @@ class S3Storage {
   td::Result<td::string> get_presigned_url(td::Slice s3_key);
 
   td::string get_public_url(td::Slice s3_key) const;
+
+  td::Result<td::string> get_file_url(td::Slice s3_key);
 
   td::Status delete_file(td::Slice s3_key);
 

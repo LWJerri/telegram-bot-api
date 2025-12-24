@@ -465,6 +465,16 @@ td::string S3Storage::get_public_url(td::Slice s3_key) const {
   return impl_->get_public_url(s3_key);
 }
 
+td::Result<td::string> S3Storage::get_file_url(td::Slice s3_key) {
+  if (!impl_) {
+    return td::Status::Error("S3 storage is not enabled");
+  }
+  if (config_.use_public_urls) {
+    return impl_->get_public_url(s3_key);
+  }
+  return impl_->get_presigned_url(s3_key);
+}
+
 td::Status S3Storage::delete_file(td::Slice s3_key) {
   if (!impl_) {
     return td::Status::Error("S3 storage is not enabled");

@@ -14597,7 +14597,7 @@ void Client::on_file_download(int32 file_id, td::Result<object_ptr<td_api::file>
 
       auto upload_result = parameters_->s3_storage_->upload_file(local_path, s3_key);
       if (upload_result.is_ok()) {
-        auto url_result = parameters_->s3_storage_->get_presigned_url(s3_key);
+        auto url_result = parameters_->s3_storage_->get_file_url(s3_key);
         if (url_result.is_ok()) {
           s3_file_urls_[file_id] = url_result.move_as_ok();
           LOG(INFO) << "File " << file_id << " uploaded to S3 with key: " << s3_key;
