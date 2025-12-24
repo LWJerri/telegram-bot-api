@@ -14590,10 +14590,36 @@ void Client::on_file_download(int32 file_id, td::Result<object_ptr<td_api::file>
   if (parameters_->s3_storage_ && parameters_->s3_storage_->is_enabled() && file->local_->is_downloading_completed_) {
     td::Slice local_path = file->local_->path_;
     if (!local_path.empty()) {
-      // <bot_token_id>/<type>/<file>
+      // <bot_token_id>/<type>/<file_unique_id>.<extension>
+      auto file_unique_id = file->remote_->unique_id_;
+      auto extension = td::PathView(local_path).extension();
+
       td::Slice relative_path = td::PathView::relative(local_path, dir_, true);
-      td::string file_path = relative_path.empty() ? td::PathView(local_path).file_name().str() : relative_path.str();
-      td::string s3_key = PSTRING() << bot_token_id_ << "/" << file_path;
+      td::string file_type;
+
+      if (!relative_path.empty()) {
+        auto slash_pos = relative_path.find('/');
+
+        if (slash_pos != td::Slice::npos) {
+          file_type = relative_path.substr(0, slash_pos).str();
+        }
+      }
+
+      td::string s3_key;
+
+      if (file_type.empty()) {
+        if (extension.empty()) {
+          s3_key = PSTRING() << bot_token_id_ << "/" << file_unique_id;
+        } else {
+          s3_key = PSTRING() << bot_token_id_ << "/" << file_unique_id << "." << extension;
+        }
+      } else {
+        if (extension.empty()) {
+          s3_key = PSTRING() << bot_token_id_ << "/" << file_type << "/" << file_unique_id;
+        } else {
+          s3_key = PSTRING() << bot_token_id_ << "/" << file_type << "/" << file_unique_id << "." << extension;
+        }
+      }
 
       auto upload_result = parameters_->s3_storage_->upload_file(local_path, s3_key);
       if (upload_result.is_ok()) {
