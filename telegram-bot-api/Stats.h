@@ -58,7 +58,7 @@ class ServerCpuStat {
  private:
   static constexpr std::size_t SIZE = 4;
   static constexpr const char *DESCR[SIZE] = {"inf", "5sec", "1min", "1hour"};
-  static constexpr int DURATIONS[SIZE] = {0, 5, 60, 60 * 60};
+  static constexpr td::int32 DURATIONS[SIZE] = {0, 5, 60, 60 * 60};
 
   std::mutex mutex_;
   td::TimedStat<CpuStat> stat_[SIZE];
@@ -191,7 +191,7 @@ class BotStatActor final : public td::Actor {
  private:
   static constexpr std::size_t SIZE = 4;
   static constexpr const char *DESCR[SIZE] = {"inf", "5sec", "1min", "1hour"};
-  static constexpr int DURATIONS[SIZE] = {0, 5, 60, 60 * 60};
+  static constexpr td::int32 DURATIONS[SIZE] = {0, 5, 60, 60 * 60};
 
   td::TimedStat<ServerBotStat> stat_[SIZE];
   td::ActorId<BotStatActor> parent_;
